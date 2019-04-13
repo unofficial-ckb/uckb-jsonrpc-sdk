@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 jsonrpc-sdk-prelude = { git = "https://github.com/yangby-cryptape/rust-jsonrpc-sdk", branch = "master" }
-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb", rev = "9485f1a" }
-ckb-core = { git = "https://github.com/nervosnetwork/ckb", rev = "9485f1a" }
-ckb-shared = { git = "https://github.com/nervosnetwork/ckb", rev = "9485f1a" }
+jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb", rev = "e70407c" }
+ckb-core = { git = "https://github.com/nervosnetwork/ckb", rev = "e70407c" }
 numext-fixed-hash = "~0.1"

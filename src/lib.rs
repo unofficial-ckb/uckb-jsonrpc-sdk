@@ -11,10 +11,9 @@
 use jsonrpc_sdk_prelude::{jsonrpc_client, jsonrpc_core, serde_json, JsonRpcRequest};
 
 pub use ckb_core::BlockNumber;
-use ckb_shared::tx_pool::TxTrace;
 pub use jsonrpc_types::{
     Block, BlockTemplate, CellOutputWithOutPoint, CellWithStatus, Header, Node, OutPoint,
-    Transaction,
+    Transaction, TxTrace,
 };
 pub use numext_fixed_hash::H256;
 
