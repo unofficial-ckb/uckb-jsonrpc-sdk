@@ -13,10 +13,10 @@ use jsonrpc_types::{
     Block, BlockTemplate, CellOutputWithOutPoint, CellWithStatus, Header, Node, OutPoint,
     Transaction, TxTrace,
 };
-use numext_fixed_hash::H256;
 
 pub use ckb_core as core;
 pub use jsonrpc_types as types;
+pub use numext_fixed_hash::{h256, H256};
 
 jsonrpc_client!(|| {
     pub trait Ckb {
