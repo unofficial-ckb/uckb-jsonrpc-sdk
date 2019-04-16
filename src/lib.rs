@@ -29,7 +29,7 @@ jsonrpc_client!(|| {
         fn get_live_cell(OutPoint) -> CellWithStatus;
         fn get_tip_block_number() -> BlockNumber;
         // Miner
-        fn get_block_template(Option<String>, Option<String>, Option<String>) -> BlockTemplate;
+        fn get_block_template(Option<String>, Option<String>, Option<u32>) -> BlockTemplate;
         fn submit_block(String, Block) -> Option<H256>;
         // Net
         fn local_node_info() -> Node;
