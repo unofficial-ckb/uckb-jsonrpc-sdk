@@ -6,16 +6,17 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![allow(clippy::unused_unit)]
-
 use jsonrpc_sdk_prelude::{jsonrpc_client, jsonrpc_core, serde_json, JsonRpcRequest};
 
-pub use ckb_core::BlockNumber;
-pub use jsonrpc_types::{
+use ckb_core::BlockNumber;
+use jsonrpc_types::{
     Block, BlockTemplate, CellOutputWithOutPoint, CellWithStatus, Header, Node, OutPoint,
     Transaction, TxTrace,
 };
-pub use numext_fixed_hash::H256;
+use numext_fixed_hash::H256;
+
+pub use ckb_core as core;
+pub use jsonrpc_types as types;
 
 jsonrpc_client!(|| {
     pub trait Ckb {
@@ -37,7 +38,7 @@ jsonrpc_client!(|| {
         fn send_transaction(Transaction) -> H256;
         fn get_pool_transaction(H256) -> Option<Transaction>;
         // Test
-        fn add_node(String, String) -> ();
+        fn add_node(String, String);
         // Trace
         fn trace_transaction(Transaction) -> H256;
         fn get_transaction_trace(H256) -> Option<Vec<TxTrace>>;
