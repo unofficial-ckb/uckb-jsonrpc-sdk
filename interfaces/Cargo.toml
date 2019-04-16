@@ -1,0 +1,11 @@
+[package]
+name = "ckb-jsonrpc-interfaces"
+version = "0.1.0"
+authors = ["Boyu Yang <yangby@cryptape.com>"]
+edition = "2018"
+
+[dependencies]
+jsonrpc-sdk-prelude = "0.1.1"
+jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb", rev = "e70407c" }
+ckb-core = { git = "https://github.com/nervosnetwork/ckb", rev = "e70407c" }
+numext-fixed-hash = "~0.1"
