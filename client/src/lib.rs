@@ -235,54 +235,38 @@ impl CkbClient {
 
     pub fn gather(
         &self,
-        lock: &core::script::Script,
+        lock_in: &core::script::Script,
+        lock_out: &core::script::Script,
         from: Option<core::BlockNumber>,
         to: Option<core::BlockNumber>,
     ) -> impl Future<Item = types::Transaction, Error = Error> {
-        let lock_hash = lock.hash();
-        let lock = lock.clone();
-        let url_cells = Arc::clone(&self.url);
-        let from = from.unwrap_or(0);
-        let fut = self.tip_block_number();
-        if let Some(h) = to {
-            future::ok(h)
-        } else {
-            future::err(Error::none())
-        }
-        .or_else(|_| fut)
-        .and_then(move |to| {
-            Client::new()
-                .post(&*url_cells)
-                .send(
-                    Ckb::get_cells_by_lock_hash(lock_hash, from.to_string(), to.to_string()),
-                    Default::default(),
-                )
-                .map(std::convert::Into::into)
-                .map(|cells: Vec<types::CellOutputWithOutPoint>| {
-                    let capacity = cells.iter().map(|c| c.capacity).sum();
-                    let inputs = cells
-                        .into_iter()
-                        .map(|c| {
-                            core::transaction::CellInput {
-                                previous_output: c.out_point.try_into().unwrap(),
-                                args: vec![],
-                                valid_since: 0,
-                            }
-                            .into()
-                        })
-                        .collect();
-                    let output =
-                        core::transaction::CellOutput::new(capacity, Vec::new(), lock, None);
-                    types::Transaction {
-                        version: 0,
-                        deps: vec![],
-                        inputs,
-                        outputs: vec![output.into()],
-                        witnesses: vec![],
-                        hash: Default::default(),
-                    }
-                })
-        })
+        let lock_out = lock_out.clone();
+        self.cells_by_lock_hash(lock_in, from, to).map(
+            move |cells: Vec<types::CellOutputWithOutPoint>| {
+                let capacity = cells.iter().map(|c| c.capacity).sum();
+                let inputs = cells
+                    .into_iter()
+                    .map(|c| {
+                        core::transaction::CellInput {
+                            previous_output: c.out_point.try_into().unwrap(),
+                            args: vec![],
+                            valid_since: 0,
+                        }
+                        .into()
+                    })
+                    .collect();
+                let output =
+                    core::transaction::CellOutput::new(capacity, Vec::new(), lock_out, None);
+                types::Transaction {
+                    version: 0,
+                    deps: vec![],
+                    inputs,
+                    outputs: vec![output.into()],
+                    witnesses: vec![],
+                    hash: Default::default(),
+                }
+            },
+        )
     }
 
     pub fn transfer(
