@@ -278,8 +278,15 @@ impl CkbClient {
         max_count: usize,
     ) -> impl Future<Item = types::Transaction, Error = Error> {
         let lock_out = lock_out.clone();
-        self.cells_by_lock_hash(lock_in, from, to).map(
-            move |cells: Vec<types::CellOutputWithOutPoint>| {
+        self.cells_by_lock_hash(lock_in, from, to)
+            .and_then(|cells| {
+                if cells.is_empty() {
+                    Err(Error::custom("input is empty"))
+                } else {
+                    Ok(cells)
+                }
+            })
+            .map(move |cells: Vec<types::CellOutputWithOutPoint>| {
                 let mut capacity: u64 = cells.iter().map(|c| c.capacity).sum();
                 let inputs = cells
                     .into_iter()
@@ -314,8 +321,7 @@ impl CkbClient {
                     witnesses: vec![],
                     hash: Default::default(),
                 }
-            },
-        )
+            })
     }
 
     /*
