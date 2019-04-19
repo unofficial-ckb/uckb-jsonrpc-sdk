@@ -15,7 +15,7 @@ use tokio::runtime::Runtime;
 use jsonrpc_sdk_client::Client;
 use jsonrpc_sdk_prelude::{Error, Result};
 
-use ckb_jsonrpc_interfaces::{core, types, Ckb, H256};
+use ckb_jsonrpc_interfaces::{core, types, Ckb, OccupiedCapacity, H256};
 
 pub struct CkbClient {
     url: Arc<String>,
@@ -269,22 +269,53 @@ impl CkbClient {
         )
     }
 
-    pub fn transfer(
+    pub fn disperse(
         &self,
-        lock: &core::script::Script,
-        input: core::transaction::CellInput,
-        capacity: core::Capacity,
-    ) -> impl Future<Item = H256, Error = Error> {
-        let output = core::transaction::CellOutput::new(capacity, Vec::new(), lock.clone(), None);
-        let tx = types::Transaction {
-            version: 0,
-            deps: vec![],
-            inputs: vec![input.into()],
-            outputs: vec![output.into()],
-            witnesses: vec![],
-            hash: Default::default(),
-        };
-        self.send(tx)
+        lock_in: &core::script::Script,
+        lock_out: &core::script::Script,
+        from: Option<core::BlockNumber>,
+        to: Option<core::BlockNumber>,
+        max_count: usize,
+    ) -> impl Future<Item = types::Transaction, Error = Error> {
+        let lock_out = lock_out.clone();
+        self.cells_by_lock_hash(lock_in, from, to).map(
+            move |cells: Vec<types::CellOutputWithOutPoint>| {
+                let mut capacity: u64 = cells.iter().map(|c| c.capacity).sum();
+                let inputs = cells
+                    .into_iter()
+                    .map(|c| {
+                        core::transaction::CellInput {
+                            previous_output: c.out_point.try_into().unwrap(),
+                            args: vec![],
+                            valid_since: 0,
+                        }
+                        .into()
+                    })
+                    .collect();
+                let mut outputs = Vec::new();
+                while capacity > 0 && outputs.len() < max_count {
+                    let mut output =
+                        core::transaction::CellOutput::new(0, Vec::new(), lock_out.clone(), None);
+                    output.capacity = output.occupied_capacity() as u64;
+                    if capacity < output.capacity {
+                        break;
+                    }
+                    capacity -= output.capacity;
+                    outputs.push(output);
+                }
+                if capacity > 0 {
+                    outputs[0].capacity += capacity;
+                }
+                types::Transaction {
+                    version: 0,
+                    deps: vec![],
+                    inputs,
+                    outputs: outputs.into_iter().map(Into::into).collect(),
+                    witnesses: vec![],
+                    hash: Default::default(),
+                }
+            },
+        )
     }
 
     /*
@@ -297,5 +328,25 @@ impl CkbClient {
         R: Send + 'static,
     {
         self.rt.block_on(future)
+    }
+
+    pub fn until_ok<F, R>(&mut self, future: F, limit_times: u64, interval_secs: u64) -> Result<R>
+    where
+        F: Send + 'static + Future<Item = R, Error = Error>,
+        R: Send + 'static,
+        F: Clone,
+    {
+        let mut cnt = 0;
+        let wait_secs = ::std::time::Duration::from_secs(interval_secs);
+        while cnt < limit_times {
+            if let Ok(r) = self.rt.block_on(future.clone()) {
+                return Ok(r);
+            } else {
+                cnt += 1;
+                ::std::thread::sleep(wait_secs);
+                continue;
+            }
+        }
+        Err(Error::custom("waiting too long"))
     }
 }

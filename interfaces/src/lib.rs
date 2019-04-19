@@ -16,6 +16,7 @@ use jsonrpc_types::{
 pub use ckb_core as core;
 pub use jsonrpc_types as types;
 pub use numext_fixed_hash::{h256, H256};
+pub use occupied_capacity::OccupiedCapacity;
 
 pub type BlockNumber = String;
 pub type Capacity = String;
