@@ -18,6 +18,7 @@ use jsonrpc_sdk_prelude::{Error, Result};
 use ckb_jsonrpc_interfaces::{core, types, Ckb, OccupiedCapacity, H256};
 
 pub struct CkbClient {
+    cli: Arc<Client>,
     url: Arc<String>,
     rt: Runtime,
 }
@@ -25,6 +26,7 @@ pub struct CkbClient {
 impl CkbClient {
     pub fn new(url: &str) -> Self {
         Self {
+            cli: Arc::new(Client::new()),
             url: Arc::new(url.to_owned()),
             rt: Runtime::new().unwrap(),
         }
@@ -35,7 +37,7 @@ impl CkbClient {
      */
 
     pub fn tip_block_number(&self) -> impl Future<Item = core::BlockNumber, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::get_tip_block_number(), Default::default())
             .map(std::convert::Into::into)
@@ -46,7 +48,7 @@ impl CkbClient {
     }
 
     pub fn tip_header(&self) -> impl Future<Item = types::Header, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::get_tip_header(), Default::default())
             .map(std::convert::Into::into)
@@ -56,7 +58,8 @@ impl CkbClient {
         &self,
         height: Option<core::BlockNumber>,
     ) -> impl Future<Item = H256, Error = Error> {
-        let url_block_hash = Arc::clone(&self.url);
+        let cli = Arc::clone(&self.cli);
+        let url = Arc::clone(&self.url);
         let fut = self.tip_block_number();
         if let Some(h) = height {
             future::ok(h)
@@ -65,8 +68,7 @@ impl CkbClient {
         }
         .or_else(|_| fut)
         .and_then(move |h| {
-            Client::new()
-                .post(&*url_block_hash)
+            cli.post(&*url)
                 .send(Ckb::get_block_hash(h.to_string()), Default::default())
                 .map(std::convert::Into::into)
                 .and_then(|r: Option<H256>| {
@@ -79,10 +81,10 @@ impl CkbClient {
         &self,
         height: Option<core::BlockNumber>,
     ) -> impl Future<Item = types::Block, Error = Error> {
-        let url_block = Arc::clone(&self.url);
+        let cli = Arc::clone(&self.cli);
+        let url = Arc::clone(&self.url);
         self.block_hash(height).and_then(move |r| {
-            Client::new()
-                .post(&*url_block)
+            cli.post(&*url)
                 .send(Ckb::get_block(r), Default::default())
                 .map(std::convert::Into::into)
                 .and_then(|r: Option<types::Block>| {
@@ -92,7 +94,7 @@ impl CkbClient {
     }
 
     pub fn block_by_hash(&self, hash: H256) -> impl Future<Item = types::Block, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::get_block(hash), Default::default())
             .map(std::convert::Into::into)
@@ -116,7 +118,8 @@ impl CkbClient {
         to: Option<core::BlockNumber>,
     ) -> impl Future<Item = Vec<types::CellOutputWithOutPoint>, Error = Error> {
         let lock_hash = lock.hash();
-        let url_cells = Arc::clone(&self.url);
+        let cli = Arc::clone(&self.cli);
+        let url = Arc::clone(&self.url);
         let from = from.unwrap_or(0);
         let fut = self.tip_block_number();
         if let Some(h) = to {
@@ -126,8 +129,7 @@ impl CkbClient {
         }
         .or_else(|_| fut)
         .and_then(move |to| {
-            Client::new()
-                .post(&*url_cells)
+            cli.post(&*url)
                 .send(
                     Ckb::get_cells_by_lock_hash(lock_hash, from.to_string(), to.to_string()),
                     Default::default(),
@@ -140,7 +142,7 @@ impl CkbClient {
         &self,
         out_point: types::OutPoint,
     ) -> impl Future<Item = types::CellWithStatus, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::get_live_cell(out_point), Default::default())
             .map(std::convert::Into::into)
@@ -155,7 +157,7 @@ impl CkbClient {
     }
 
     pub fn send(&self, tx: types::Transaction) -> impl Future<Item = H256, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::send_transaction(tx), Default::default())
             .map(std::convert::Into::into)
@@ -165,7 +167,7 @@ impl CkbClient {
         &self,
         hash: H256,
     ) -> impl Future<Item = types::Transaction, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::get_pool_transaction(hash), Default::default())
             .map(std::convert::Into::into)
@@ -175,7 +177,7 @@ impl CkbClient {
     }
 
     pub fn transaction(&self, hash: H256) -> impl Future<Item = types::Transaction, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::get_transaction(hash), Default::default())
             .map(std::convert::Into::into)
@@ -185,7 +187,7 @@ impl CkbClient {
     }
 
     pub fn trace(&self, tx: types::Transaction) -> impl Future<Item = H256, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::trace_transaction(tx), Default::default())
             .map(std::convert::Into::into)
@@ -195,7 +197,7 @@ impl CkbClient {
         &self,
         hash: H256,
     ) -> impl Future<Item = Vec<types::TxTrace>, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::get_transaction_trace(hash), Default::default())
             .map(std::convert::Into::into)
@@ -205,14 +207,14 @@ impl CkbClient {
     }
 
     pub fn local_node_info(&self) -> impl Future<Item = types::Node, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::local_node_info(), Default::default())
             .map(std::convert::Into::into)
     }
 
     pub fn get_peers(&self) -> impl Future<Item = Vec<types::Node>, Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::get_peers(), Default::default())
             .map(std::convert::Into::into)
@@ -223,7 +225,7 @@ impl CkbClient {
         peer_id: String,
         address: String,
     ) -> impl Future<Item = (), Error = Error> {
-        Client::new()
+        self.cli
             .post(&*self.url)
             .send(Ckb::add_node(peer_id, address), Default::default())
             .map(std::convert::Into::into)
