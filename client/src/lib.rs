@@ -151,9 +151,18 @@ impl CkbClient {
     pub fn total_capacity(
         &self,
         lock: &core::script::Script,
-    ) -> impl Future<Item = core::Capacity, Error = Error> {
-        self.cells_by_lock_hash(lock, None, None)
-            .map(|u| u.into_iter().map(|c| c.capacity).sum())
+    ) -> impl Future<Item = u64, Error = Error> {
+        self.cells_by_lock_hash(lock, None, None).and_then(|u| {
+            u.into_iter()
+                .map(|c| c.capacity.parse::<u64>())
+                .collect::<::std::result::Result<Vec<_>, std::num::ParseIntError>>()
+                .map_err(|_| Error::custom("parse capacity failed"))
+                .and_then(|caps| {
+                    caps.into_iter()
+                        .try_fold(0u64, u64::checked_add)
+                        .ok_or_else(|| Error::custom("sum capacity overflow"))
+                })
+        })
     }
 
     pub fn send(&self, tx: types::Transaction) -> impl Future<Item = H256, Error = Error> {
@@ -243,30 +252,44 @@ impl CkbClient {
         to: Option<core::BlockNumber>,
     ) -> impl Future<Item = types::Transaction, Error = Error> {
         let lock_out = lock_out.clone();
-        self.cells_by_lock_hash(lock_in, from, to).map(
+        self.cells_by_lock_hash(lock_in, from, to).and_then(
             move |cells: Vec<types::CellOutputWithOutPoint>| {
-                let capacity = cells.iter().map(|c| c.capacity).sum();
+                let capacity = cells
+                    .iter()
+                    .map(|c| c.capacity.parse::<u64>())
+                    .collect::<::std::result::Result<Vec<_>, std::num::ParseIntError>>()
+                    .map_err(|_| Error::custom("parse capacity failed"))
+                    .and_then(|caps| {
+                        caps.into_iter()
+                            .try_fold(0u64, u64::checked_add)
+                            .ok_or_else(|| Error::custom("sum capacity overflow"))
+                    })?;
+
                 let inputs = cells
                     .into_iter()
                     .map(|c| {
                         core::transaction::CellInput {
                             previous_output: c.out_point.try_into().unwrap(),
                             args: vec![],
-                            valid_since: 0,
+                            since: 0,
                         }
                         .into()
                     })
                     .collect();
-                let output =
-                    core::transaction::CellOutput::new(capacity, Vec::new(), lock_out, None);
-                types::Transaction {
+                let output = core::transaction::CellOutput::new(
+                    core::Capacity::shannons(capacity),
+                    Vec::new(),
+                    lock_out,
+                    None,
+                );
+                Ok(types::Transaction {
                     version: 0,
                     deps: vec![],
                     inputs,
                     outputs: vec![output.into()],
                     witnesses: vec![],
                     hash: Default::default(),
-                }
+                })
             },
         )
     }
@@ -288,41 +311,60 @@ impl CkbClient {
                     Ok(cells)
                 }
             })
-            .map(move |cells: Vec<types::CellOutputWithOutPoint>| {
-                let mut capacity: u64 = cells.iter().map(|c| c.capacity).sum();
+            .and_then(move |cells: Vec<types::CellOutputWithOutPoint>| {
+                let mut capacity = cells
+                    .iter()
+                    .map(|c| c.capacity.parse::<u64>())
+                    .collect::<::std::result::Result<Vec<_>, std::num::ParseIntError>>()
+                    .map_err(|_| Error::custom("parse capacity failed"))
+                    .and_then(|caps| {
+                        caps.into_iter()
+                            .try_fold(0u64, u64::checked_add)
+                            .ok_or_else(|| Error::custom("sum capacity overflow"))
+                    })?;
+
                 let inputs = cells
                     .into_iter()
                     .map(|c| {
                         core::transaction::CellInput {
                             previous_output: c.out_point.try_into().unwrap(),
                             args: vec![],
-                            valid_since: 0,
+                            since: 0,
                         }
                         .into()
                     })
                     .collect();
                 let mut outputs = Vec::new();
                 while capacity > 0 && outputs.len() < max_count {
-                    let mut output =
-                        core::transaction::CellOutput::new(0, Vec::new(), lock_out.clone(), None);
-                    output.capacity = output.occupied_capacity() as u64;
-                    if capacity < output.capacity {
+                    let mut output = core::transaction::CellOutput::new(
+                        core::Capacity::shannons(0),
+                        Vec::new(),
+                        lock_out.clone(),
+                        None,
+                    );
+                    output.capacity = output
+                        .occupied_capacity()
+                        .map_err(|_| Error::custom("capacity overflow"))?;
+                    if capacity < output.capacity.as_u64() {
                         break;
                     }
-                    capacity -= output.capacity;
+                    capacity -= output.capacity.as_u64();
                     outputs.push(output);
                 }
                 if capacity > 0 {
-                    outputs[0].capacity += capacity;
+                    outputs[0].capacity = outputs[0]
+                        .capacity
+                        .safe_add(core::Capacity::shannons(capacity))
+                        .map_err(|_| Error::custom("capacity overflow"))?;
                 }
-                types::Transaction {
+                Ok(types::Transaction {
                     version: 0,
                     deps: vec![],
                     inputs,
                     outputs: outputs.into_iter().map(Into::into).collect(),
                     witnesses: vec![],
                     hash: Default::default(),
-                }
+                })
             })
     }
 

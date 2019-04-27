@@ -9,19 +9,14 @@
 use jsonrpc_sdk_prelude::{jsonrpc_client, jsonrpc_core, serde_json, JsonRpcRequest};
 
 use jsonrpc_types::{
-    Block, BlockTemplate, CellOutputWithOutPoint, CellWithStatus, Header, Node, OutPoint,
-    Transaction, TxTrace,
+    Block, BlockNumber, BlockTemplate, CellOutputWithOutPoint, CellWithStatus, Cycle, Header, Node,
+    OutPoint, Transaction, TxTrace, Version,
 };
 
 pub use ckb_core as core;
 pub use jsonrpc_types as types;
 pub use numext_fixed_hash::{h256, H256};
 pub use occupied_capacity::OccupiedCapacity;
-
-pub type BlockNumber = String;
-pub type Capacity = String;
-pub type Cycle = String;
-pub type Version = u32;
 
 jsonrpc_client!(|| {
     pub trait Ckb {
