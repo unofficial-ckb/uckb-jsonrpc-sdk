@@ -6,7 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::convert::TryInto;
 use std::sync::Arc;
 
 use futures::{future, Future};
@@ -15,7 +14,7 @@ use tokio::runtime::Runtime;
 use jsonrpc_sdk_client::r#async::Client;
 use jsonrpc_sdk_prelude::{Error, Result};
 
-use ckb_jsonrpc_interfaces::{core, types, Ckb, OccupiedCapacity, H256};
+use ckb_jsonrpc_interfaces::{core, types, Ckb, H256};
 
 pub struct CkbClient {
     cli: Arc<Client>,
@@ -238,134 +237,6 @@ impl CkbClient {
             .post(&*self.url)
             .send(Ckb::add_node(peer_id, address), Default::default())
             .map(std::convert::Into::into)
-    }
-
-    /*
-     * Combine
-     */
-
-    pub fn gather(
-        &self,
-        lock_in: &core::script::Script,
-        lock_out: &core::script::Script,
-        from: Option<core::BlockNumber>,
-        to: Option<core::BlockNumber>,
-    ) -> impl Future<Item = types::Transaction, Error = Error> {
-        let lock_out = lock_out.clone();
-        self.cells_by_lock_hash(lock_in, from, to).and_then(
-            move |cells: Vec<types::CellOutputWithOutPoint>| {
-                let capacity = cells
-                    .iter()
-                    .map(|c| c.capacity.parse::<u64>())
-                    .collect::<::std::result::Result<Vec<_>, std::num::ParseIntError>>()
-                    .map_err(|_| Error::custom("parse capacity failed"))
-                    .and_then(|caps| {
-                        caps.into_iter()
-                            .try_fold(0u64, u64::checked_add)
-                            .ok_or_else(|| Error::custom("sum capacity overflow"))
-                    })?;
-
-                let inputs = cells
-                    .into_iter()
-                    .map(|c| {
-                        core::transaction::CellInput {
-                            previous_output: c.out_point.try_into().unwrap(),
-                            args: vec![],
-                            since: 0,
-                        }
-                        .into()
-                    })
-                    .collect();
-                let output = core::transaction::CellOutput::new(
-                    core::Capacity::shannons(capacity),
-                    Vec::new(),
-                    lock_out,
-                    None,
-                );
-                Ok(types::Transaction {
-                    version: 0,
-                    deps: vec![],
-                    inputs,
-                    outputs: vec![output.into()],
-                    witnesses: vec![],
-                    hash: Default::default(),
-                })
-            },
-        )
-    }
-
-    pub fn disperse(
-        &self,
-        lock_in: &core::script::Script,
-        lock_out: &core::script::Script,
-        from: Option<core::BlockNumber>,
-        to: Option<core::BlockNumber>,
-        max_count: usize,
-    ) -> impl Future<Item = types::Transaction, Error = Error> {
-        let lock_out = lock_out.clone();
-        self.cells_by_lock_hash(lock_in, from, to)
-            .and_then(|cells| {
-                if cells.is_empty() {
-                    Err(Error::custom("input is empty"))
-                } else {
-                    Ok(cells)
-                }
-            })
-            .and_then(move |cells: Vec<types::CellOutputWithOutPoint>| {
-                let mut capacity = cells
-                    .iter()
-                    .map(|c| c.capacity.parse::<u64>())
-                    .collect::<::std::result::Result<Vec<_>, std::num::ParseIntError>>()
-                    .map_err(|_| Error::custom("parse capacity failed"))
-                    .and_then(|caps| {
-                        caps.into_iter()
-                            .try_fold(0u64, u64::checked_add)
-                            .ok_or_else(|| Error::custom("sum capacity overflow"))
-                    })?;
-
-                let inputs = cells
-                    .into_iter()
-                    .map(|c| {
-                        core::transaction::CellInput {
-                            previous_output: c.out_point.try_into().unwrap(),
-                            args: vec![],
-                            since: 0,
-                        }
-                        .into()
-                    })
-                    .collect();
-                let mut outputs = Vec::new();
-                while capacity > 0 && outputs.len() < max_count {
-                    let mut output = core::transaction::CellOutput::new(
-                        core::Capacity::shannons(0),
-                        Vec::new(),
-                        lock_out.clone(),
-                        None,
-                    );
-                    output.capacity = output
-                        .occupied_capacity()
-                        .map_err(|_| Error::custom("capacity overflow"))?;
-                    if capacity < output.capacity.as_u64() {
-                        break;
-                    }
-                    capacity -= output.capacity.as_u64();
-                    outputs.push(output);
-                }
-                if capacity > 0 {
-                    outputs[0].capacity = outputs[0]
-                        .capacity
-                        .safe_add(core::Capacity::shannons(capacity))
-                        .map_err(|_| Error::custom("capacity overflow"))?;
-                }
-                Ok(types::Transaction {
-                    version: 0,
-                    deps: vec![],
-                    inputs,
-                    outputs: outputs.into_iter().map(Into::into).collect(),
-                    witnesses: vec![],
-                    hash: Default::default(),
-                })
-            })
     }
 
     /*
