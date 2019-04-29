@@ -10,7 +10,7 @@ use jsonrpc_sdk_prelude::{jsonrpc_client, jsonrpc_core, serde_json, JsonRpcReque
 
 use jsonrpc_types::{
     Block, BlockNumber, BlockTemplate, CellOutputWithOutPoint, CellWithStatus, Cycle, Header, Node,
-    OutPoint, Transaction, TxTrace, Version,
+    OutPoint, Transaction, TransactionWithStatus, TxTrace, Version,
 };
 
 pub use ckb_core as core;
@@ -22,7 +22,7 @@ jsonrpc_client!(|| {
     pub trait Ckb {
         // Chain
         fn get_block(H256) -> Option<Block>;
-        fn get_transaction(H256) -> Option<Transaction>;
+        fn get_transaction(H256) -> Option<TransactionWithStatus>;
         fn get_block_hash(BlockNumber) -> Option<H256>;
         fn get_tip_header() -> Header;
         fn get_cells_by_lock_hash(H256, BlockNumber, BlockNumber) -> Vec<CellOutputWithOutPoint>;
@@ -36,9 +36,9 @@ jsonrpc_client!(|| {
         fn get_peers() -> Vec<Node>;
         // Pool
         fn send_transaction(Transaction) -> H256;
-        fn get_pool_transaction(H256) -> Option<Transaction>;
         // Test
         fn add_node(String, String);
+        fn enqueue_test_transaction(Transaction) -> H256;
         // Trace
         fn trace_transaction(Transaction) -> H256;
         fn get_transaction_trace(H256) -> Option<Vec<TxTrace>>;

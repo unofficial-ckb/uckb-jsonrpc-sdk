@@ -150,23 +150,13 @@ impl CkbClient {
             .map(std::convert::Into::into)
     }
 
-    pub fn pool_transaction(&self, hash: H256) -> Result<types::Transaction> {
-        self.cli
-            .post(&*self.url)
-            .send(Ckb::get_pool_transaction(hash), Default::default())
-            .map(std::convert::Into::into)
-            .and_then(|r: Option<types::Transaction>| {
-                r.ok_or_else(|| Error::custom("fetch pool transaction failed"))
-            })
-    }
-
-    pub fn transaction(&self, hash: H256) -> Result<types::Transaction> {
+    pub fn transaction(&self, hash: H256) -> Result<types::TransactionWithStatus> {
         self.cli
             .post(&*self.url)
             .send(Ckb::get_transaction(hash), Default::default())
             .map(std::convert::Into::into)
-            .and_then(|r: Option<types::Transaction>| {
-                r.ok_or_else(|| Error::custom("fetch transaction failed"))
+            .and_then(|r: Option<types::TransactionWithStatus>| {
+                r.ok_or_else(|| Error::custom("fetch transaction with status failed"))
             })
     }
 
@@ -205,6 +195,13 @@ impl CkbClient {
         self.cli
             .post(&*self.url)
             .send(Ckb::add_node(peer_id, address), Default::default())
+            .map(std::convert::Into::into)
+    }
+
+    pub fn enqueue(&self, tx: types::Transaction) -> Result<H256> {
+        self.cli
+            .post(&*self.url)
+            .send(Ckb::enqueue_test_transaction(tx), Default::default())
             .map(std::convert::Into::into)
     }
 }
