@@ -10,9 +10,10 @@ use jsonrpc_sdk_prelude::{jsonrpc_client, jsonrpc_core, serde_json, JsonRpcReque
 
 use jsonrpc_types::{
     Block, BlockNumber, BlockTemplate, CellOutputWithOutPoint, CellWithStatus, Cycle, Header, Node,
-    OutPoint, Transaction, TransactionWithStatus, TxTrace, Version,
+    OutPoint, Transaction, TransactionWithStatus, TxPoolInfo, TxTrace, Version,
 };
 
+pub use bytes;
 pub use ckb_core as core;
 pub use jsonrpc_types as types;
 pub use numext_fixed_hash::{h256, H256};
@@ -36,6 +37,7 @@ jsonrpc_client!(|| {
         fn get_peers() -> Vec<Node>;
         // Pool
         fn send_transaction(Transaction) -> H256;
+        fn tx_pool_info() -> TxPoolInfo;
         // Test
         fn add_node(String, String);
         fn enqueue_test_transaction(Transaction) -> H256;

@@ -204,6 +204,13 @@ impl CkbClient {
             })
     }
 
+    pub fn tx_pool_info(&self) -> impl Future<Item = types::TxPoolInfo, Error = Error> {
+        self.cli
+            .post(&*self.url)
+            .send(Ckb::tx_pool_info(), Default::default())
+            .map(std::convert::Into::into)
+    }
+
     pub fn local_node_info(&self) -> impl Future<Item = types::Node, Error = Error> {
         self.cli
             .post(&*self.url)

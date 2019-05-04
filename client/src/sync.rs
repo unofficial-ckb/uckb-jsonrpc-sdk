@@ -177,6 +177,13 @@ impl CkbClient {
             })
     }
 
+    pub fn tx_pool_info(&self) -> Result<types::TxPoolInfo> {
+        self.cli
+            .post(&*self.url)
+            .send(Ckb::tx_pool_info(), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
     pub fn local_node_info(&self) -> Result<types::Node> {
         self.cli
             .post(&*self.url)
