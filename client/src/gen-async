@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+cp sync.rs async.rs
+
+old=") -> Result<\(.\+\)>"
+new=") -> impl Future<Item = \1, Error = Error>"
+sed -i "s/${old}/${new}/" async.rs
+
+old="use jsonrpc_sdk_client::sync::Client;"
+new="use futures::{future, Future};\n\nuse jsonrpc_sdk_client::r#async::Client;"
+sed -i "s/${old}/${new}/" async.rs
+
+old="use jsonrpc_sdk_prelude::{Error, Result};"
+new="use jsonrpc_sdk_prelude::Error;"
+sed -i "s/${old}/${new}/" async.rs
+
+sed -i "s/option_to_error/option_to_future/" async.rs
+
+rustfmt --emit files async.rs

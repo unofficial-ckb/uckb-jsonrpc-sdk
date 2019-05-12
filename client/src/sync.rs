@@ -26,189 +26,260 @@ impl CkbClient {
         }
     }
 
+    pub fn cli(&self) -> Arc<Client> {
+        Arc::clone(&self.cli)
+    }
+
+    pub fn url(&self) -> Arc<String> {
+        Arc::clone(&self.url)
+    }
+
     /*
-     * Basic
+     * Chain
      */
+
+    // Genesis
+
+    pub fn genesis_hash(&self) -> Result<H256> {
+        self.block_hash(Some(0))
+    }
+
+    pub fn genesis_block(&self) -> Result<types::BlockView> {
+        self.block_by_number(0)
+    }
+
+    // Tip and Current
 
     pub fn tip_block_number(&self) -> Result<core::BlockNumber> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::get_tip_block_number(), Default::default())
             .map(::std::convert::Into::into)
-            .and_then(|r: String| {
-                r.parse()
-                    .map_err(|_| Error::custom("parse block number failed"))
-            })
+            .map(|r: types::BlockNumber| r.0)
     }
 
-    pub fn tip_header(&self) -> Result<types::Header> {
+    pub fn tip_block_hash(&self) -> Result<H256> {
+        self.block_hash(None)
+    }
+
+    pub fn tip_header(&self) -> Result<types::HeaderView> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::get_tip_header(), Default::default())
             .map(::std::convert::Into::into)
     }
 
-    pub fn block_hash(&self, height: Option<core::BlockNumber>) -> Result<H256> {
-        let cli = Arc::clone(&self.cli);
-        let url = Arc::clone(&self.url);
-        if let Some(h) = height {
-            Ok(h)
-        } else {
-            self.tip_block_number()
-        }
-        .and_then(move |h| {
-            cli.post(&*url)
-                .send(Ckb::get_block_hash(h.to_string()), Default::default())
-                .map(::std::convert::Into::into)
-                .and_then(|r: Option<H256>| {
-                    r.ok_or_else(|| Error::custom("fetch block hash failed"))
-                })
-        })
-    }
-
-    pub fn block_by_number(&self, height: Option<core::BlockNumber>) -> Result<types::Block> {
-        let cli = Arc::clone(&self.cli);
-        let url = Arc::clone(&self.url);
-        self.block_hash(height).and_then(move |r| {
-            cli.post(&*url)
-                .send(Ckb::get_block(r), Default::default())
-                .map(::std::convert::Into::into)
-                .and_then(|r: Option<types::Block>| {
-                    r.ok_or_else(|| Error::custom("fetch block failed"))
-                })
-        })
-    }
-
-    pub fn block_by_hash(&self, hash: H256) -> Result<types::Block> {
+    pub fn current_epoch(&self) -> Result<types::EpochExt> {
         self.cli
-            .post(&*self.url)
-            .send(Ckb::get_block(hash), Default::default())
+            .post(&*self.url())
+            .send(Ckb::get_current_epoch(), Default::default())
             .map(::std::convert::Into::into)
-            .and_then(|r: Option<types::Block>| {
-                r.ok_or_else(|| Error::custom("fetch block failed"))
-            })
     }
 
-    pub fn genesis_block(&self) -> Result<types::Block> {
-        self.block_by_number(Some(0))
-    }
+    // Block
 
-    pub fn last_block(&self) -> Result<types::Block> {
-        self.block_by_number(None)
-    }
-
-    pub fn cells_by_lock_hash(
-        &self,
-        lock: &core::script::Script,
-        from: Option<core::BlockNumber>,
-        to: Option<core::BlockNumber>,
-    ) -> Result<Vec<types::CellOutputWithOutPoint>> {
-        let lock_hash = lock.hash();
-        let from = from.unwrap_or(0);
-        let cli = Arc::clone(&self.cli);
-        let url = Arc::clone(&self.url);
-        if let Some(h) = to {
-            Ok(h)
-        } else {
-            self.tip_block_number()
-        }
-        .and_then(move |to| {
+    pub fn block_hash(&self, number: Option<core::BlockNumber>) -> Result<H256> {
+        let cli = self.cli();
+        let url = self.url();
+        option_to_error!(number, self.tip_block_number()).and_then(move |num| {
             cli.post(&*url)
                 .send(
-                    Ckb::get_cells_by_lock_hash(lock_hash, from.to_string(), to.to_string()),
+                    Ckb::get_block_hash(types::BlockNumber(num)),
                     Default::default(),
                 )
                 .map(::std::convert::Into::into)
+                .and_then(|r: Option<H256>| r.ok_or_else(Error::none))
         })
     }
 
-    pub fn live_cell(&self, out_point: types::OutPoint) -> Result<types::CellWithStatus> {
+    pub fn block_by_hash(&self, hash: H256) -> Result<types::BlockView> {
         self.cli
-            .post(&*self.url)
-            .send(Ckb::get_live_cell(out_point), Default::default())
+            .post(&*self.url())
+            .send(Ckb::get_block(hash), Default::default())
             .map(::std::convert::Into::into)
+            .and_then(|r: Option<types::BlockView>| r.ok_or_else(Error::none))
     }
 
-    pub fn total_capacity(&self, lock: &core::script::Script) -> Result<u64> {
-        self.cells_by_lock_hash(lock, None, None).and_then(|u| {
-            u.into_iter()
-                .map(|c| c.capacity.parse::<u64>())
-                .collect::<::std::result::Result<Vec<_>, ::std::num::ParseIntError>>()
-                .map_err(|_| Error::custom("parse capacity failed"))
-                .and_then(|caps| {
-                    caps.into_iter()
-                        .try_fold(0u64, u64::checked_add)
-                        .ok_or_else(|| Error::custom("sum capacity overflow"))
-                })
-        })
+    pub fn block_by_number(&self, number: core::BlockNumber) -> Result<types::BlockView> {
+        self.cli
+            .post(&*self.url())
+            .send(
+                Ckb::get_block_by_number(types::BlockNumber(number)),
+                Default::default(),
+            )
+            .map(::std::convert::Into::into)
+            .and_then(|r: Option<types::BlockView>| r.ok_or_else(Error::none))
     }
+
+    // Transaction
 
     pub fn send(&self, tx: types::Transaction) -> Result<H256> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::send_transaction(tx), Default::default())
             .map(::std::convert::Into::into)
     }
 
     pub fn transaction(&self, hash: H256) -> Result<types::TransactionWithStatus> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::get_transaction(hash), Default::default())
             .map(::std::convert::Into::into)
-            .and_then(|r: Option<types::TransactionWithStatus>| {
-                r.ok_or_else(|| Error::custom("fetch transaction with status failed"))
-            })
+            .and_then(|r: Option<types::TransactionWithStatus>| r.ok_or_else(Error::none))
     }
 
-    pub fn trace(&self, tx: types::Transaction) -> Result<H256> {
+    // Cell
+
+    pub fn cells_by_lock_hash(
+        &self,
+        lock_hash: H256,
+        from: core::BlockNumber,
+        to: core::BlockNumber,
+    ) -> Result<Vec<types::CellOutputWithOutPoint>> {
         self.cli
-            .post(&*self.url)
-            .send(Ckb::trace_transaction(tx), Default::default())
+            .post(&*self.url())
+            .send(
+                Ckb::get_cells_by_lock_hash(
+                    lock_hash,
+                    types::BlockNumber(from),
+                    types::BlockNumber(to),
+                ),
+                Default::default(),
+            )
             .map(::std::convert::Into::into)
     }
 
-    pub fn transaction_trace(&self, hash: H256) -> Result<Vec<types::TxTrace>> {
+    pub fn live_cell(&self, out_point: types::OutPoint) -> Result<types::CellWithStatus> {
         self.cli
-            .post(&*self.url)
-            .send(Ckb::get_transaction_trace(hash), Default::default())
+            .post(&*self.url())
+            .send(Ckb::get_live_cell(out_point), Default::default())
             .map(::std::convert::Into::into)
-            .and_then(|r: Option<Vec<types::TxTrace>>| {
-                r.ok_or_else(|| Error::custom("fetch transaction trace failed"))
-            })
     }
+
+    // Epoch
+
+    pub fn epoch_by_number(&self, number: core::EpochNumber) -> Result<types::EpochExt> {
+        self.cli
+            .post(&*self.url())
+            .send(
+                Ckb::get_epoch_by_number(types::EpochNumber(number)),
+                Default::default(),
+            )
+            .map(::std::convert::Into::into)
+            .and_then(|r: Option<types::EpochExt>| r.ok_or_else(Error::none))
+    }
+
+    /*
+     * Pool
+     */
 
     pub fn tx_pool_info(&self) -> Result<types::TxPoolInfo> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::tx_pool_info(), Default::default())
             .map(::std::convert::Into::into)
     }
 
+    /*
+     * Stats
+     */
+
+    pub fn blockchain_info(&self) -> Result<types::ChainInfo> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::get_blockchain_info(), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
+    pub fn peers_state(&self) -> Result<Vec<types::PeerState>> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::get_peers_state(), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
+    /*
+     * Net
+     */
+
     pub fn local_node_info(&self) -> Result<types::Node> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::local_node_info(), Default::default())
             .map(::std::convert::Into::into)
     }
 
-    pub fn get_peers(&self) -> Result<Vec<types::Node>> {
+    pub fn peers(&self) -> Result<Vec<types::Node>> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::get_peers(), Default::default())
             .map(::std::convert::Into::into)
     }
 
+    /*
+     * Test
+     */
+
     pub fn add_node(&self, peer_id: String, address: String) -> Result<()> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::add_node(peer_id, address), Default::default())
             .map(::std::convert::Into::into)
     }
 
     pub fn enqueue(&self, tx: types::Transaction) -> Result<H256> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::enqueue_test_transaction(tx), Default::default())
             .map(::std::convert::Into::into)
+    }
+
+    /*
+     * Experiment
+     */
+
+    pub fn compute_hash(&self, tx: types::Transaction) -> Result<H256> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::_compute_transaction_hash(tx), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
+    pub fn dry_run_send(&self, tx: types::Transaction) -> Result<types::DryRunResult> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::_dry_run_transaction(tx), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
+    /*
+     * Miner
+     */
+
+    pub fn block_template(
+        &self,
+        bytes_limit: Option<u64>,
+        proposals_limit: Option<u64>,
+        max_version: Option<core::Version>,
+    ) -> Result<types::BlockTemplate> {
+        self.cli
+            .post(&*self.url())
+            .send(
+                Ckb::get_block_template(
+                    bytes_limit.map(types::Unsigned),
+                    proposals_limit.map(types::Unsigned),
+                    max_version.map(types::Version),
+                ),
+                Default::default(),
+            )
+            .map(::std::convert::Into::into)
+    }
+
+    pub fn submit_block(&self, work_id: String, block: types::Block) -> Result<H256> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::submit_block(work_id, block), Default::default())
+            .map(::std::convert::Into::into)
+            .and_then(|r: Option<H256>| r.ok_or_else(Error::none))
     }
 }

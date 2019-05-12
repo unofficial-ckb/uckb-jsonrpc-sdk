@@ -9,17 +9,15 @@
 use std::sync::Arc;
 
 use futures::{future, Future};
-use tokio::runtime::Runtime;
 
 use jsonrpc_sdk_client::r#async::Client;
-use jsonrpc_sdk_prelude::{Error, Result};
+use jsonrpc_sdk_prelude::Error;
 
 use ckb_jsonrpc_interfaces::{core, types, Ckb, H256};
 
 pub struct CkbClient {
     cli: Arc<Client>,
     url: Arc<String>,
-    rt: Runtime,
 }
 
 impl CkbClient {
@@ -27,146 +25,105 @@ impl CkbClient {
         Self {
             cli: Arc::new(Client::new()),
             url: Arc::new(url.to_owned()),
-            rt: Runtime::new().unwrap(),
         }
     }
 
+    pub fn cli(&self) -> Arc<Client> {
+        Arc::clone(&self.cli)
+    }
+
+    pub fn url(&self) -> Arc<String> {
+        Arc::clone(&self.url)
+    }
+
     /*
-     * Basic
+     * Chain
      */
+
+    // Genesis
+
+    pub fn genesis_hash(&self) -> impl Future<Item = H256, Error = Error> {
+        self.block_hash(Some(0))
+    }
+
+    pub fn genesis_block(&self) -> impl Future<Item = types::BlockView, Error = Error> {
+        self.block_by_number(0)
+    }
+
+    // Tip and Current
 
     pub fn tip_block_number(&self) -> impl Future<Item = core::BlockNumber, Error = Error> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::get_tip_block_number(), Default::default())
             .map(::std::convert::Into::into)
-            .and_then(|r: String| {
-                r.parse()
-                    .map_err(|_| Error::custom("parse block number failed"))
-            })
+            .map(|r: types::BlockNumber| r.0)
     }
 
-    pub fn tip_header(&self) -> impl Future<Item = types::Header, Error = Error> {
+    pub fn tip_block_hash(&self) -> impl Future<Item = H256, Error = Error> {
+        self.block_hash(None)
+    }
+
+    pub fn tip_header(&self) -> impl Future<Item = types::HeaderView, Error = Error> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::get_tip_header(), Default::default())
             .map(::std::convert::Into::into)
     }
 
+    pub fn current_epoch(&self) -> impl Future<Item = types::EpochExt, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::get_current_epoch(), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
+    // Block
+
     pub fn block_hash(
         &self,
-        height: Option<core::BlockNumber>,
+        number: Option<core::BlockNumber>,
     ) -> impl Future<Item = H256, Error = Error> {
-        let cli = Arc::clone(&self.cli);
-        let url = Arc::clone(&self.url);
-        let fut = self.tip_block_number();
-        if let Some(h) = height {
-            future::ok(h)
-        } else {
-            future::err(Error::none())
-        }
-        .or_else(|_| fut)
-        .and_then(move |h| {
+        let cli = self.cli();
+        let url = self.url();
+        option_to_future!(number, self.tip_block_number()).and_then(move |num| {
             cli.post(&*url)
-                .send(Ckb::get_block_hash(h.to_string()), Default::default())
+                .send(
+                    Ckb::get_block_hash(types::BlockNumber(num)),
+                    Default::default(),
+                )
                 .map(::std::convert::Into::into)
-                .and_then(|r: Option<H256>| {
-                    r.ok_or_else(|| Error::custom("fetch block hash failed"))
-                })
+                .and_then(|r: Option<H256>| r.ok_or_else(Error::none))
         })
+    }
+
+    pub fn block_by_hash(&self, hash: H256) -> impl Future<Item = types::BlockView, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::get_block(hash), Default::default())
+            .map(::std::convert::Into::into)
+            .and_then(|r: Option<types::BlockView>| r.ok_or_else(Error::none))
     }
 
     pub fn block_by_number(
         &self,
-        height: Option<core::BlockNumber>,
-    ) -> impl Future<Item = types::Block, Error = Error> {
-        let cli = Arc::clone(&self.cli);
-        let url = Arc::clone(&self.url);
-        self.block_hash(height).and_then(move |r| {
-            cli.post(&*url)
-                .send(Ckb::get_block(r), Default::default())
-                .map(::std::convert::Into::into)
-                .and_then(|r: Option<types::Block>| {
-                    r.ok_or_else(|| Error::custom("fetch block failed"))
-                })
-        })
-    }
-
-    pub fn block_by_hash(&self, hash: H256) -> impl Future<Item = types::Block, Error = Error> {
+        number: core::BlockNumber,
+    ) -> impl Future<Item = types::BlockView, Error = Error> {
         self.cli
-            .post(&*self.url)
-            .send(Ckb::get_block(hash), Default::default())
+            .post(&*self.url())
+            .send(
+                Ckb::get_block_by_number(types::BlockNumber(number)),
+                Default::default(),
+            )
             .map(::std::convert::Into::into)
-            .and_then(|r: Option<types::Block>| {
-                r.ok_or_else(|| Error::custom("fetch block failed"))
-            })
+            .and_then(|r: Option<types::BlockView>| r.ok_or_else(Error::none))
     }
 
-    pub fn genesis_block(&self) -> impl Future<Item = types::Block, Error = Error> {
-        self.block_by_number(Some(0))
-    }
-
-    pub fn last_block(&self) -> impl Future<Item = types::Block, Error = Error> {
-        self.block_by_number(None)
-    }
-
-    pub fn cells_by_lock_hash(
-        &self,
-        lock: &core::script::Script,
-        from: Option<core::BlockNumber>,
-        to: Option<core::BlockNumber>,
-    ) -> impl Future<Item = Vec<types::CellOutputWithOutPoint>, Error = Error> {
-        let lock_hash = lock.hash();
-        let cli = Arc::clone(&self.cli);
-        let url = Arc::clone(&self.url);
-        let from = from.unwrap_or(0);
-        let fut = self.tip_block_number();
-        if let Some(h) = to {
-            future::ok(h)
-        } else {
-            future::err(Error::none())
-        }
-        .or_else(|_| fut)
-        .and_then(move |to| {
-            cli.post(&*url)
-                .send(
-                    Ckb::get_cells_by_lock_hash(lock_hash, from.to_string(), to.to_string()),
-                    Default::default(),
-                )
-                .map(::std::convert::Into::into)
-        })
-    }
-
-    pub fn live_cell(
-        &self,
-        out_point: types::OutPoint,
-    ) -> impl Future<Item = types::CellWithStatus, Error = Error> {
-        self.cli
-            .post(&*self.url)
-            .send(Ckb::get_live_cell(out_point), Default::default())
-            .map(::std::convert::Into::into)
-    }
-
-    pub fn total_capacity(
-        &self,
-        lock: &core::script::Script,
-    ) -> impl Future<Item = u64, Error = Error> {
-        self.cells_by_lock_hash(lock, None, None).and_then(|u| {
-            u.into_iter()
-                .map(|c| c.capacity.parse::<u64>())
-                .collect::<::std::result::Result<Vec<_>, ::std::num::ParseIntError>>()
-                .map_err(|_| Error::custom("parse capacity failed"))
-                .and_then(|caps| {
-                    caps.into_iter()
-                        .try_fold(0u64, u64::checked_add)
-                        .ok_or_else(|| Error::custom("sum capacity overflow"))
-                })
-        })
-    }
+    // Transaction
 
     pub fn send(&self, tx: types::Transaction) -> impl Future<Item = H256, Error = Error> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::send_transaction(tx), Default::default())
             .map(::std::convert::Into::into)
     }
@@ -176,54 +133,109 @@ impl CkbClient {
         hash: H256,
     ) -> impl Future<Item = types::TransactionWithStatus, Error = Error> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::get_transaction(hash), Default::default())
             .map(::std::convert::Into::into)
-            .and_then(|r: Option<types::TransactionWithStatus>| {
-                r.ok_or_else(|| Error::custom("fetch transaction with status failed"))
-            })
+            .and_then(|r: Option<types::TransactionWithStatus>| r.ok_or_else(Error::none))
     }
 
-    pub fn trace(&self, tx: types::Transaction) -> impl Future<Item = H256, Error = Error> {
-        self.cli
-            .post(&*self.url)
-            .send(Ckb::trace_transaction(tx), Default::default())
-            .map(::std::convert::Into::into)
-    }
+    // Cell
 
-    pub fn transaction_trace(
+    pub fn cells_by_lock_hash(
         &self,
-        hash: H256,
-    ) -> impl Future<Item = Vec<types::TxTrace>, Error = Error> {
+        lock_hash: H256,
+        from: core::BlockNumber,
+        to: core::BlockNumber,
+    ) -> impl Future<Item = Vec<types::CellOutputWithOutPoint>, Error = Error> {
         self.cli
-            .post(&*self.url)
-            .send(Ckb::get_transaction_trace(hash), Default::default())
+            .post(&*self.url())
+            .send(
+                Ckb::get_cells_by_lock_hash(
+                    lock_hash,
+                    types::BlockNumber(from),
+                    types::BlockNumber(to),
+                ),
+                Default::default(),
+            )
             .map(::std::convert::Into::into)
-            .and_then(|r: Option<Vec<types::TxTrace>>| {
-                r.ok_or_else(|| Error::custom("fetch transaction trace failed"))
-            })
     }
+
+    pub fn live_cell(
+        &self,
+        out_point: types::OutPoint,
+    ) -> impl Future<Item = types::CellWithStatus, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::get_live_cell(out_point), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
+    // Epoch
+
+    pub fn epoch_by_number(
+        &self,
+        number: core::EpochNumber,
+    ) -> impl Future<Item = types::EpochExt, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(
+                Ckb::get_epoch_by_number(types::EpochNumber(number)),
+                Default::default(),
+            )
+            .map(::std::convert::Into::into)
+            .and_then(|r: Option<types::EpochExt>| r.ok_or_else(Error::none))
+    }
+
+    /*
+     * Pool
+     */
 
     pub fn tx_pool_info(&self) -> impl Future<Item = types::TxPoolInfo, Error = Error> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::tx_pool_info(), Default::default())
             .map(::std::convert::Into::into)
     }
 
+    /*
+     * Stats
+     */
+
+    pub fn blockchain_info(&self) -> impl Future<Item = types::ChainInfo, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::get_blockchain_info(), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
+    pub fn peers_state(&self) -> impl Future<Item = Vec<types::PeerState>, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::get_peers_state(), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
+    /*
+     * Net
+     */
+
     pub fn local_node_info(&self) -> impl Future<Item = types::Node, Error = Error> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::local_node_info(), Default::default())
             .map(::std::convert::Into::into)
     }
 
-    pub fn get_peers(&self) -> impl Future<Item = Vec<types::Node>, Error = Error> {
+    pub fn peers(&self) -> impl Future<Item = Vec<types::Node>, Error = Error> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::get_peers(), Default::default())
             .map(::std::convert::Into::into)
     }
+
+    /*
+     * Test
+     */
 
     pub fn add_node(
         &self,
@@ -231,47 +243,71 @@ impl CkbClient {
         address: String,
     ) -> impl Future<Item = (), Error = Error> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::add_node(peer_id, address), Default::default())
             .map(::std::convert::Into::into)
     }
 
     pub fn enqueue(&self, tx: types::Transaction) -> impl Future<Item = H256, Error = Error> {
         self.cli
-            .post(&*self.url)
+            .post(&*self.url())
             .send(Ckb::enqueue_test_transaction(tx), Default::default())
             .map(::std::convert::Into::into)
     }
 
     /*
-     * Utilities
+     * Experiment
      */
 
-    pub fn block_on<F, R>(&mut self, future: F) -> Result<R>
-    where
-        F: Send + 'static + Future<Item = R, Error = Error>,
-        R: Send + 'static,
-    {
-        self.rt.block_on(future)
+    pub fn compute_hash(&self, tx: types::Transaction) -> impl Future<Item = H256, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::_compute_transaction_hash(tx), Default::default())
+            .map(::std::convert::Into::into)
     }
 
-    pub fn until_ok<F, R>(&mut self, future: F, limit_times: u64, interval_secs: u64) -> Result<R>
-    where
-        F: Send + 'static + Future<Item = R, Error = Error>,
-        R: Send + 'static,
-        F: Clone,
-    {
-        let mut cnt = 0;
-        let wait_secs = ::std::time::Duration::from_secs(interval_secs);
-        while cnt < limit_times {
-            if let Ok(r) = self.rt.block_on(future.clone()) {
-                return Ok(r);
-            } else {
-                cnt += 1;
-                ::std::thread::sleep(wait_secs);
-                continue;
-            }
-        }
-        Err(Error::custom("waiting too long"))
+    pub fn dry_run_send(
+        &self,
+        tx: types::Transaction,
+    ) -> impl Future<Item = types::DryRunResult, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::_dry_run_transaction(tx), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
+    /*
+     * Miner
+     */
+
+    pub fn block_template(
+        &self,
+        bytes_limit: Option<u64>,
+        proposals_limit: Option<u64>,
+        max_version: Option<core::Version>,
+    ) -> impl Future<Item = types::BlockTemplate, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(
+                Ckb::get_block_template(
+                    bytes_limit.map(types::Unsigned),
+                    proposals_limit.map(types::Unsigned),
+                    max_version.map(types::Version),
+                ),
+                Default::default(),
+            )
+            .map(::std::convert::Into::into)
+    }
+
+    pub fn submit_block(
+        &self,
+        work_id: String,
+        block: types::Block,
+    ) -> impl Future<Item = H256, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::submit_block(work_id, block), Default::default())
+            .map(::std::convert::Into::into)
+            .and_then(|r: Option<H256>| r.ok_or_else(Error::none))
     }
 }
