@@ -5,7 +5,7 @@ authors = ["Boyu Yang <yangby@cryptape.com>"]
 edition = "2018"
 
 [dependencies]
-jsonrpc-sdk-prelude = "0.1.3"
+jsonrpc-sdk-prelude = "0.1.4"
 jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb", rev = "2bdd38f" }
 ckb-core = { git = "https://github.com/nervosnetwork/ckb", rev = "2bdd38f" }
 occupied-capacity = { git = "https://github.com/nervosnetwork/ckb", rev = "2bdd38f" }

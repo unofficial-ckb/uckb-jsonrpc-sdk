@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use jsonrpc_sdk_prelude::{jsonrpc_client, jsonrpc_core, serde_json, JsonRpcRequest};
+use jsonrpc_sdk_prelude::{jsonrpc_core, jsonrpc_interfaces, serde_json, JsonRpcRequest};
 
 use jsonrpc_types::{
     Block, BlockNumber, BlockTemplate, BlockView, CellOutputWithOutPoint, CellWithStatus,
@@ -20,7 +20,7 @@ pub use jsonrpc_types as types;
 pub use numext_fixed_hash::{h256, H256};
 pub use occupied_capacity::OccupiedCapacity;
 
-jsonrpc_client!(|| {
+jsonrpc_interfaces!(|| {
     pub trait Ckb {
         // Chain
         fn get_block(H256) -> Option<BlockView>;
