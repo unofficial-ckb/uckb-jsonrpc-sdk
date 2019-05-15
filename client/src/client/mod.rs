@@ -6,7 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-pub mod client;
-pub mod error;
-pub mod serde;
-pub mod storage;
+#[macro_use]
+mod helper;
+
+mod r#async;
+mod sync;
+
+pub use r#async::CkbClient as CkbAsyncClient;
+pub use sync::CkbClient as CkbSyncClient;
