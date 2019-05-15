@@ -5,9 +5,11 @@ authors = ["Boyu Yang <yangby@cryptape.com>"]
 edition = "2018"
 
 [dependencies]
-jsonrpc-sdk-prelude = "0.1.4"
-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb", rev = "2bdd38f" }
-ckb-core = { git = "https://github.com/nervosnetwork/ckb", rev = "2bdd38f" }
-occupied-capacity = { git = "https://github.com/nervosnetwork/ckb", rev = "2bdd38f" }
+jsonrpc-sdk-prelude = "=0.1.4"
+jsonrpc-types     = { git = "https://github.com/nervosnetwork/ckb", rev = "de68fc4" }
+ckb-core          = { git = "https://github.com/nervosnetwork/ckb", rev = "de68fc4" }
+occupied-capacity = { git = "https://github.com/nervosnetwork/ckb", rev = "de68fc4" }
+hash              = { git = "https://github.com/nervosnetwork/ckb", rev = "de68fc4" }
+crypto            = { git = "https://github.com/nervosnetwork/ckb", rev = "de68fc4" }
 numext-fixed-hash = "~0.1"
-bytes = { version="0.4", features = ["serde"] }
+bytes = { version="~0.4", features = ["serde"] }

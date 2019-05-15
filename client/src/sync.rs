@@ -227,10 +227,17 @@ impl CkbClient {
             .map(::std::convert::Into::into)
     }
 
-    pub fn enqueue(&self, tx: types::Transaction) -> Result<H256> {
+    pub fn remove_node(&self, peer_id: String) -> Result<()> {
         self.cli
             .post(&*self.url())
-            .send(Ckb::enqueue_test_transaction(tx), Default::default())
+            .send(Ckb::remove_node(peer_id), Default::default())
+            .map(::std::convert::Into::into)
+    }
+
+    pub fn process_block_without_verify(&self, block: types::Block) -> Result<Option<H256>> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::process_block_without_verify(block), Default::default())
             .map(::std::convert::Into::into)
     }
 
@@ -238,17 +245,10 @@ impl CkbClient {
      * Experiment
      */
 
-    pub fn compute_hash(&self, tx: types::Transaction) -> Result<H256> {
-        self.cli
-            .post(&*self.url())
-            .send(Ckb::_compute_transaction_hash(tx), Default::default())
-            .map(::std::convert::Into::into)
-    }
-
     pub fn dry_run_send(&self, tx: types::Transaction) -> Result<types::DryRunResult> {
         self.cli
             .post(&*self.url())
-            .send(Ckb::_dry_run_transaction(tx), Default::default())
+            .send(Ckb::dry_run_transaction(tx), Default::default())
             .map(::std::convert::Into::into)
     }
 

@@ -6,6 +6,6 @@ edition = "2018"
 
 [dependencies]
 ckb-jsonrpc-interfaces = { path = "../interfaces" }
-jsonrpc-sdk-client = "0.1.4"
-jsonrpc-sdk-prelude = "0.1.4"
+jsonrpc-sdk-client  = "=0.1.4"
+jsonrpc-sdk-prelude = "=0.1.4"
 futures = "~0.1"

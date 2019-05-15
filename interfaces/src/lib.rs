@@ -14,11 +14,14 @@ use jsonrpc_types::{
     Transaction, TransactionWithStatus, TxPoolInfo, Unsigned, Version,
 };
 
+// Re-export all required crates from [CKB](https://github.com/nervosnetwork/ckb).
 pub use bytes;
 pub use ckb_core as core;
+pub use crypto::secp as secp256k1;
+pub use hash as blake2b;
 pub use jsonrpc_types as types;
 pub use numext_fixed_hash::{h256, H256};
-pub use occupied_capacity::OccupiedCapacity;
+pub use occupied_capacity;
 
 jsonrpc_interfaces!(|| {
     pub trait Ckb {
@@ -44,10 +47,10 @@ jsonrpc_interfaces!(|| {
         fn get_peers() -> Vec<Node>;
         // Test
         fn add_node(String, String);
-        fn enqueue_test_transaction(Transaction) -> H256;
+        fn remove_node(String);
+        fn process_block_without_verify(Block) -> Option<H256>;
         // Experiment
-        fn _compute_transaction_hash(Transaction) -> H256;
-        fn _dry_run_transaction(Transaction) -> DryRunResult;
+        fn dry_run_transaction(Transaction) -> DryRunResult;
         // Miner
         fn get_block_template(Option<Unsigned>, Option<Unsigned>, Option<Version>)
             -> BlockTemplate;
