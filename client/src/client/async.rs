@@ -21,10 +21,10 @@ pub struct CkbClient {
 }
 
 impl CkbClient {
-    pub fn new(url: &str) -> Self {
+    pub fn new(url: url::Url) -> Self {
         Self {
             cli: Arc::new(Client::new()),
-            url: Arc::new(url.to_owned()),
+            url: Arc::new(url.into_string()),
         }
     }
 

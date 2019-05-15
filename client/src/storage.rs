@@ -147,8 +147,7 @@ macro_rules! return_ok_if_none {
 }
 
 impl Storage {
-    pub fn initial(path_str: &str) -> RkvResult<Self> {
-        let path = Path::new(path_str);
+    pub fn initial(path: &Path) -> RkvResult<Self> {
         if !path.exists() {
             fs::create_dir_all(path)?;
         }
