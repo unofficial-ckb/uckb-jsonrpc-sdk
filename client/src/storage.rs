@@ -26,8 +26,8 @@ use crate::serde::{
 };
 
 const MAX_READERS: u32 = 64;
-const MAX_DBS: u32 = 8;
-const MAP_SIZE: usize = 64 * 1024 * 1024;
+const MAX_DBS: u32 = 16;
+const MAP_SIZE: usize = 1024 * 1024 * 1024;
 
 #[derive(Debug, Default)]
 struct Index(u64, usize);
