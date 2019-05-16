@@ -14,6 +14,7 @@ use std::{
 };
 
 use bincode;
+use lmdb;
 use property::Property;
 use rkv::{Manager, Reader, Rkv, SingleStore, StoreError, StoreOptions, Value, Writer};
 
@@ -271,7 +272,10 @@ impl StorageWriter for Storage {
                 self.txs
                     .put(&mut writer, &hash.as_bytes(), &Value::Blob(&index))?;
                 for input in inputs.into_iter() {
-                    self.cells.delete(&mut writer, &input.into_bytes()[..])?;
+                    match self.cells.delete(&mut writer, &input.into_bytes()[..]) {
+                        Ok(_) | Err(StoreError::LmdbError(lmdb::Error::NotFound)) => {}
+                        Err(err) => Err(err)?,
+                    }
                 }
                 for output in outputs.into_iter() {
                     self.cells
