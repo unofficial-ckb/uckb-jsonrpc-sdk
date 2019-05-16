@@ -38,6 +38,7 @@ pub type RkvResult<T> = StdResult<T, StoreError>;
 
 pub trait StorageWriter {
     fn insert_block(&self, block: &types::BlockView) -> Result<()>;
+    fn update_cell_status(&self, tx_hash: &H256, cell_index: u32, confirm: bool) -> Result<()>;
     fn insert<K: AsRef<[u8]>>(&self, key: K, value: &[u8]) -> Result<()>;
 }
 
@@ -53,7 +54,7 @@ pub trait StorageReader {
         tx_hash: &H256,
         cell_index: u32,
     ) -> Result<Option<types::CellOutput>>;
-    fn select_cell_status(&self, tx_hash: &H256, cell_index: u32) -> Result<Option<()>>;
+    fn select_cell_status(&self, tx_hash: &H256, cell_index: u32) -> Result<Option<bool>>;
     fn select_max_number(&self) -> Result<Option<u64>>;
     fn select<K: AsRef<[u8]>>(&self, key: K) -> Result<Option<Vec<u8>>>;
 }
@@ -284,6 +285,16 @@ impl StorageWriter for Storage {
         })
     }
 
+    fn update_cell_status(&self, tx_hash: &H256, cell_index: u32, confirm: bool) -> Result<()> {
+        let index = CellIndex::new(tx_hash.to_owned(), cell_index as usize);
+        self.write(|mut writer| {
+            self.cells
+                .put(&mut writer, &index.into_bytes()[..], &Value::Bool(confirm))?;
+            writer.commit()?;
+            Ok(())
+        })
+    }
+
     fn insert<K: AsRef<[u8]>>(&self, key: K, value: &[u8]) -> Result<()> {
         self.write(|mut writer| {
             self.custom.put(&mut writer, key, &Value::Blob(value))?;
@@ -438,12 +449,13 @@ impl StorageReader for Storage {
         })
     }
 
-    fn select_cell_status(&self, tx_hash: &H256, cell_index: u32) -> Result<Option<()>> {
+    fn select_cell_status(&self, tx_hash: &H256, cell_index: u32) -> Result<Option<bool>> {
         let index = CellIndex::new(tx_hash.to_owned(), cell_index as usize);
         self.read(|reader| {
             let cell_opt = self.cells.get(reader, &index.into_bytes()[..])?;
-            let _ = return_ok_if_none!(cell_opt);
-            Ok(Some(()))
+            let cell_value = return_ok_if_none!(cell_opt);
+            let cell_status = unpack_bool(cell_value)?;
+            Ok(Some(cell_status))
         })
     }
 
@@ -463,6 +475,14 @@ impl StorageReader for Storage {
             let data_bytes = unpack_blob(data_blob)?;
             Ok(Some(data_bytes.to_vec()))
         })
+    }
+}
+
+fn unpack_bool(value: Value) -> Result<bool> {
+    if let Value::Bool(number) = value {
+        Ok(number)
+    } else {
+        Err(Error::corruption("value should be number"))
     }
 }
 
