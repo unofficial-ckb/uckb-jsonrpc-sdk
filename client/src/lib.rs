@@ -6,8 +6,12 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+pub extern crate ckb_jsonrpc_interfaces as interfaces;
+pub extern crate url;
+
+pub mod sdk {
+    pub extern crate jsonrpc_sdk_client as client;
+    pub extern crate jsonrpc_sdk_prelude as prelude;
+}
+
 pub mod client;
-pub mod error;
-pub mod serde;
-pub mod storage;
-pub mod system;
