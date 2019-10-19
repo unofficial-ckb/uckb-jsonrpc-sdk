@@ -13,7 +13,7 @@ use futures::{future, Future};
 use jsonrpc_sdk_client::r#async::Client;
 use jsonrpc_sdk_prelude::Error;
 
-use ckb_jsonrpc_interfaces::{
+use uckb_jsonrpc_interfaces::{
     types::{core, packed, rpc, H256},
     Ckb,
 };

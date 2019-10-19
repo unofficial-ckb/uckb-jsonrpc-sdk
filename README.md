@@ -1,12 +1,12 @@
-# CKB JSON-RPC SDK
+# [Unofficial] CKB JSON-RPC SDK
 
 [![License]](#license)
-[![Travis CI]](https://travis-ci.com/yangby-cryptape/ckb-jsonrpc-sdk)
+[![Travis CI]](https://travis-ci.com/unofficial-ckb/uckb-jsonrpc-sdk)
 
-A simple rust JSON-RPC SDK for [CKB].
+[Unofficial] A simple rust JSON-RPC SDK for [CKB].
 
 [License]: https://img.shields.io/badge/License-Apache--2.0%20OR%20MIT-blue.svg
-[Travis CI]: https://img.shields.io/travis/com/yangby-cryptape/ckb-jsonrpc-sdk.svg
+[Travis CI]: https://img.shields.io/travis/com/unofficial-ckb/uckb-jsonrpc-sdk.svg
 [CKB]: https://github.com/nervosnetwork/ckb
 
 ## License

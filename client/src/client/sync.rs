@@ -11,7 +11,7 @@ use std::{convert::Into, sync::Arc};
 use jsonrpc_sdk_client::sync::Client;
 use jsonrpc_sdk_prelude::{Error, Result};
 
-use ckb_jsonrpc_interfaces::{
+use uckb_jsonrpc_interfaces::{
     types::{core, packed, rpc, H256},
     Ckb,
 };
