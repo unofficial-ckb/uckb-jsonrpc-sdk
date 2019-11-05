@@ -67,10 +67,12 @@ jsonrpc_interfaces!(|| {
         fn remove_node(String);
         fn process_block_without_verify(Block) -> Option<H256>;
         fn broadcast_transaction(Transaction, Cycle) -> H256;
+        fn get_fork_block(H256) -> Option<BlockView>;
         // Experiment
         fn compute_transaction_hash(Transaction) -> H256;
         fn compute_script_hash(Script) -> H256;
         fn dry_run_transaction(Transaction) -> DryRunResult;
         fn calculate_dao_maximum_withdraw(OutPoint, H256) -> Capacity;
+        fn estimate_fee_rate(Uint64) -> EstimateResult;
     }
 });

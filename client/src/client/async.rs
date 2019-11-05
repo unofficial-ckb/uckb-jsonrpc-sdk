@@ -212,13 +212,15 @@ impl CkbClient {
     pub fn get_cellbase_output_capacity_details(
         &self,
         block_hash: H256,
-    ) -> impl Future<Item = Option<rpc::BlockReward>, Error = Error> {
+    ) -> impl Future<Item = rpc::BlockReward, Error = Error> {
         self.cli
             .post(&*self.url())
             .send(
                 Ckb::get_cellbase_output_capacity_details(block_hash),
                 Default::default(),
             )
+            .map(Into::into)
+            .and_then(|r: Option<rpc::BlockReward>| r.ok_or_else(Error::none))
             .map(Into::into)
     }
 }
@@ -455,13 +457,15 @@ impl CkbClient {
     pub fn process_block_without_verify(
         &self,
         block: packed::Block,
-    ) -> impl Future<Item = Option<H256>, Error = Error> {
+    ) -> impl Future<Item = H256, Error = Error> {
         self.cli
             .post(&*self.url())
             .send(
                 Ckb::process_block_without_verify(block.into()),
                 Default::default(),
             )
+            .map(Into::into)
+            .and_then(|r: Option<H256>| r.ok_or_else(Error::none))
             .map(Into::into)
     }
 
@@ -476,6 +480,15 @@ impl CkbClient {
                 Ckb::broadcast_transaction(tx.into(), cycle.into()),
                 Default::default(),
             )
+            .map(Into::into)
+    }
+
+    pub fn get_fork_block(&self, hash: H256) -> impl Future<Item = core::BlockView, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(Ckb::get_fork_block(hash), Default::default())
+            .map(Into::into)
+            .and_then(|r: Option<rpc::BlockView>| r.ok_or_else(Error::none))
             .map(Into::into)
     }
 
@@ -523,6 +536,19 @@ impl CkbClient {
                 Default::default(),
             )
             .map(Into::<rpc::Capacity>::into)
+            .map(Into::into)
+    }
+
+    pub fn estimate_fee_rate(
+        &self,
+        expect_confirm_blocks: u64,
+    ) -> impl Future<Item = rpc::EstimateResult, Error = Error> {
+        self.cli
+            .post(&*self.url())
+            .send(
+                Ckb::estimate_fee_rate(expect_confirm_blocks.into()),
+                Default::default(),
+            )
             .map(Into::into)
     }
 }
