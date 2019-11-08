@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 jsonrpc-sdk-prelude = "=0.1.4"
-ckb-jsonrpc-types   = { git = "https://github.com/nervosnetwork/ckb", tag = "v0.24.0" }
-ckb-types           = { git = "https://github.com/nervosnetwork/ckb", tag = "v0.24.0" }
-ckb-hash            = { git = "https://github.com/nervosnetwork/ckb", tag = "v0.24.0" }
-ckb-crypto          = { git = "https://github.com/nervosnetwork/ckb", tag = "v0.24.0" }
+ckb-jsonrpc-types   = { git = "https://github.com/nervosnetwork/ckb", rev = "1f88147" }
+ckb-types           = { git = "https://github.com/nervosnetwork/ckb", rev = "1f88147" }
+ckb-hash            = { git = "https://github.com/nervosnetwork/ckb", rev = "1f88147" }
+ckb-crypto          = { git = "https://github.com/nervosnetwork/ckb", rev = "1f88147" }
