@@ -5,7 +5,7 @@ authors = ["Boyu Yang <yangby@cryptape.com>"]
 edition = "2018"
 
 [dependencies]
-uckb-jsonrpc-interfaces = { path = "../interfaces" }
+uckb-jsonrpc-interfaces = { version = "~0.1", path = "../interfaces" }
 jsonrpc-sdk-client  = "=0.1.4"
 jsonrpc-sdk-prelude = "=0.1.4"
 futures = "~0.1"
