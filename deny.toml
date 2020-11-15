@@ -1,0 +1,28 @@
+[advisories]
+vulnerability = "deny"
+unmaintained = "deny"
+yanked = "deny"
+notice = "deny"
+ignore = [
+    "RUSTSEC-2020-0016", # net2 crate has been deprecated; use socket2 instead
+    "RUSTSEC-2020-0036", # failure is officially deprecated/unmaintained
+]
+[licenses]
+unlicensed = "deny"
+allow = [
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+]
+copyleft = "deny"
+allow-osi-fsf-free = "neither"
+default = "deny"
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
