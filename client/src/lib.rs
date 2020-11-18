@@ -15,4 +15,3 @@ mod client;
 mod runtime;
 
 pub use client::Client;
-pub use runtime::Runtime;

@@ -13,22 +13,23 @@ use parking_lot::RwLock;
 use tokio::{runtime::Runtime as RawRuntime, task::JoinHandle};
 
 #[derive(Clone)]
-pub struct Runtime {
+pub(crate) struct Runtime {
     core: Arc<RwLock<RawRuntime>>,
     legacy_support: Arc<RwLock<RawRuntime01>>,
 }
 
 impl Runtime {
-    pub fn new(raw_rt: RawRuntime, raw_rt01: RawRuntime01) -> Self {
-        let core = Arc::new(RwLock::new(raw_rt));
-        let legacy_support = Arc::new(RwLock::new(raw_rt01));
+    pub(crate) fn new(
+        core: Arc<RwLock<RawRuntime>>,
+        legacy_support: Arc<RwLock<RawRuntime01>>,
+    ) -> Self {
         Self {
             core,
             legacy_support,
         }
     }
 
-    pub fn block_on<F>(&self, future: F) -> F::Output
+    pub(crate) fn block_on<F>(&self, future: F) -> F::Output
     where
         F: Future,
     {
@@ -36,7 +37,7 @@ impl Runtime {
         self.core.read().block_on(future)
     }
 
-    pub fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
+    pub(crate) fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
@@ -45,7 +46,7 @@ impl Runtime {
         self.core.read().spawn(future)
     }
 
-    pub fn block_on_01<F>(&self, future: F) -> result::Result<F::Item, F::Error>
+    pub(crate) fn block_on_01<F>(&self, future: F) -> result::Result<F::Item, F::Error>
     where
         F: Future01 + Send + 'static,
         F::Item: Send + 'static,
@@ -55,7 +56,7 @@ impl Runtime {
         self.legacy_support.write().block_on(future)
     }
 
-    pub fn spawn_01<F>(&self, future: F)
+    pub(crate) fn spawn_01<F>(&self, future: F)
     where
         F: Future01<Item = (), Error = ()> + Send + 'static,
         F::Item: Send,

@@ -16,7 +16,8 @@ use uckb_jsonrpc_core::types::rpc;
 use super::TcpClient;
 use crate::{
     error::{Error, Result},
-    Client, Runtime,
+    runtime::Runtime,
+    Client,
 };
 
 impl Client {

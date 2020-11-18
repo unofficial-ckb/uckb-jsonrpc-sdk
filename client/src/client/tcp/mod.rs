@@ -23,7 +23,7 @@ use uckb_jsonrpc_core::{client::TcpClient as RawTcpClient, types::rpc};
 
 use crate::{
     error::{Error, Result},
-    Runtime,
+    runtime::Runtime,
 };
 
 mod methods;

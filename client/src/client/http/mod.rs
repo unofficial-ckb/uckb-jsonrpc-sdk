@@ -10,7 +10,7 @@ use jsonrpc_core_client::transports::http;
 use uckb_jsonrpc_core::client::HttpClient as RawHttpClient;
 use url::Url;
 
-use crate::{error::Result, Runtime};
+use crate::{error::Result, runtime::Runtime};
 
 mod methods;
 
