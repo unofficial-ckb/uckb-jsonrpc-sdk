@@ -1,6 +1,6 @@
 [package]
 name = "uckb-jsonrpc-core"
-version = "0.2.0"
+version = "0.2.1-alpha.0"
 authors = ["Boyu Yang <yangby@cryptape.com>"]
 edition = "2018"
 description = "[Unofficial] A simple rust JSON-RPC SDK for CKB."
