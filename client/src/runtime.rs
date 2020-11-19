@@ -14,15 +14,12 @@ use tokio::{runtime::Runtime as RawRuntime, task::JoinHandle};
 
 #[derive(Clone)]
 pub(crate) struct Runtime {
-    core: Arc<RwLock<RawRuntime>>,
+    core: Arc<RawRuntime>,
     legacy_support: Arc<RwLock<RawRuntime01>>,
 }
 
 impl Runtime {
-    pub(crate) fn new(
-        core: Arc<RwLock<RawRuntime>>,
-        legacy_support: Arc<RwLock<RawRuntime01>>,
-    ) -> Self {
+    pub(crate) fn new(core: Arc<RawRuntime>, legacy_support: Arc<RwLock<RawRuntime01>>) -> Self {
         Self {
             core,
             legacy_support,
@@ -34,7 +31,7 @@ impl Runtime {
         F: Future,
     {
         log::trace!("block on a future");
-        self.core.read().block_on(future)
+        self.core.block_on(future)
     }
 
     pub(crate) fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
@@ -43,7 +40,7 @@ impl Runtime {
         F::Output: Send + 'static,
     {
         log::trace!("spawn a future");
-        self.core.read().spawn(future)
+        self.core.spawn(future)
     }
 
     pub(crate) fn block_on_01<F>(&self, future: F) -> result::Result<F::Item, F::Error>

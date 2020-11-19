@@ -30,7 +30,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(rt: Arc<RwLock<RawRuntime>>, rt01: Arc<RwLock<RawRuntime01>>) -> Self {
+    pub fn new(rt: Arc<RawRuntime>, rt01: Arc<RwLock<RawRuntime01>>) -> Self {
         log::info!("create a new client");
         Self {
             runtime: Runtime::new(rt, rt01),
