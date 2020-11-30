@@ -153,6 +153,14 @@ impl Client {
         b!(self, verify_transaction_proof, tx_proof)
     }
 
+    pub fn get_fork_block(
+        &self,
+        block_hash: fixed::H256,
+        verbosity: Option<u32>,
+    ) -> Result<Option<rpc::BlockView>> {
+        b!(self, get_fork_block, block_hash, verbosity)
+    }
+
     //
     // Module Pool
     //
@@ -335,10 +343,6 @@ impl Client {
     ) -> Result<fixed::H256> {
         b!(self, broadcast_transaction, transaction, cycles)
     }
-
-    pub fn get_fork_block(&self, hash: fixed::H256) -> Result<Option<rpc::BlockView>> {
-        b!(self, get_fork_block, hash)
-    }
 }
 
 impl HttpClient {
@@ -351,7 +355,7 @@ impl HttpClient {
         block_hash: fixed::H256,
         verbosity: Option<u32>,
     ) -> impl Future<Item = Option<core::BlockView>, Error = Error> {
-        coi!(self, get_block, block_hash, verbosity.map(Into::into),)
+        coi!(self, get_block, block_hash, verbosity.map(Into::into))
     }
 
     fn get_block_by_number(
@@ -452,6 +456,14 @@ impl HttpClient {
         tx_proof: rpc::TransactionProof,
     ) -> impl Future<Item = Vec<fixed::H256>, Error = Error> {
         c!(self, verify_transaction_proof, tx_proof)
+    }
+
+    fn get_fork_block(
+        &self,
+        block_hash: fixed::H256,
+        verbosity: Option<u32>,
+    ) -> impl Future<Item = Option<rpc::BlockView>, Error = Error> {
+        coi!(self, get_fork_block, block_hash, verbosity.map(Into::into))
     }
 
     //
@@ -654,12 +666,5 @@ impl HttpClient {
             transaction.into(),
             cycles.into()
         )
-    }
-
-    fn get_fork_block(
-        &self,
-        hash: fixed::H256,
-    ) -> impl Future<Item = Option<rpc::BlockView>, Error = Error> {
-        coi!(self, get_fork_block, hash)
     }
 }

@@ -79,6 +79,12 @@ pub(crate) mod http {
         ) -> Result<TransactionProof>;
         #[rpc(name = "verify_transaction_proof")]
         fn verify_transaction_proof(&self, tx_proof: TransactionProof) -> Result<Vec<H256>>;
+        #[rpc(name = "get_fork_block")]
+        fn get_fork_block(
+            &self,
+            block_hash: H256,
+            verbosity: Option<Uint32>,
+        ) -> Result<Option<BlockView>>;
         // Module Pool
         #[rpc(name = "send_transaction")]
         fn send_transaction(
@@ -171,7 +177,5 @@ pub(crate) mod http {
         ) -> Result<H256>;
         #[rpc(name = "broadcast_transaction")]
         fn broadcast_transaction(&self, transaction: Transaction, cycles: Cycle) -> Result<H256>;
-        #[rpc(name = "get_fork_block")]
-        fn get_fork_block(&self, _hash: H256) -> Result<Option<BlockView>>;
     }
 }

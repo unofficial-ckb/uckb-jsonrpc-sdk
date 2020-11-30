@@ -11,11 +11,11 @@ categories = []
 license = "Apache-2.0 OR MIT"
 
 [dependencies]
-ckb-types = "0.37.0"
-ckb-jsonrpc-types = "0.37.0"
-ckb-fee-estimator = "0.37.0"
-ckb-hash = "0.37.0"
-ckb-crypto = "0.37.0"
+ckb-types = "0.38.0"
+ckb-jsonrpc-types = "0.38.0"
+ckb-fee-estimator = "0.38.0"
+ckb-hash = "0.38.0"
+ckb-crypto = "0.38.0"
 jsonrpc-derive = "15.1.0"
 jsonrpc-core = "15.1.0"
 jsonrpc-core-client = { version = "15.1.0", features = ["http"] }
