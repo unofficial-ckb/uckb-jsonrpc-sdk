@@ -1,6 +1,6 @@
 [package]
 name = "uckb-jsonrpc-client"
-version = "0.2.1-alpha.0"
+version = "0.3.0"
 authors = ["Boyu Yang <yangby@cryptape.com>"]
 edition = "2018"
 description = "[Unofficial] A simple rust JSON-RPC SDK for CKB."
@@ -11,7 +11,7 @@ categories = []
 license = "Apache-2.0 OR MIT"
 
 [dependencies]
-uckb-jsonrpc-core = { version = "0.2.1-alpha.0", path = "../core" }
+uckb-jsonrpc-core = { version = "0.3.0", path = "../core" }
 jsonrpc-core = "15.1.0"
 jsonrpc-core-client = "15.1.0"
 jsonrpc-server-utils = "15.1.0"
