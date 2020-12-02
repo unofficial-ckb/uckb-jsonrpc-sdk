@@ -1,0 +1,76 @@
+name: CI
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master ]
+defaults:
+  run:
+    shell: bash
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -F warnings
+  RUST_BACKTRACE: full
+jobs:
+  rustfmt:
+    name: Checks / Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup
+        run: cargo fmt --version || rustup component add rustfmt
+      - name: Run
+        run: cargo fmt --all -- --check
+  clippy:
+    name: Checks / Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup
+        run: cargo clippy --version || rustup component add clippy
+      - name: Run
+        run: cargo clippy -- --deny warnings
+  cargo-deny:
+    name: Checks / Deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: CacheKey
+        id: cache-key
+        run: echo "::set-output name=yyyymm::$(/bin/date -u "+%Y%m")"
+      - name: Cache
+        id: cache-cargo-deny
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/bin/cargo-deny
+          key: ${{ runner.os }}-${{ steps.cache-key.outputs.yyyymm }}
+      - name: Setup
+        if: steps.cache-cargo-deny.outputs.cache-hit != 'true'
+        run: cargo deny --version || cargo install cargo-deny --locked
+      - name: Run
+        run: cargo deny check --hide-inclusion-graph --show-stats
+  test:
+    name: Tests / Build & Test
+    needs: [ rustfmt, clippy ]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build: [ linux ]
+        include:
+          - build: linux
+            os: ubuntu-latest
+            rust: 1.48.0
+          #- build: windows
+          #  os: windows-latest
+          #  rust: 1.48.0
+          #- build: macos
+          #  os: macos-latest
+          #  rust: 1.48.0
+      fail-fast: true
+      max-parallel: 3
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        run: cargo build --verbose --all
+      - name: Test
+        run: cargo test --verbose --all
